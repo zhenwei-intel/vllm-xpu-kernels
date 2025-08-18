@@ -36,6 +36,9 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
   ops.def("silu_and_mul(Tensor! out, Tensor! input) -> ()");
   ops.impl("silu_and_mul", torch::kXPU, &silu_and_mul);
 
+  ops.def("gelu(Tensor! out, Tensor! input) -> ()");
+  ops.impl("gelu", torch::kXPU, &gelu);
+
   // pos_embedding
   ops.def(
       "rotary_embedding(Tensor positions, Tensor! query,"

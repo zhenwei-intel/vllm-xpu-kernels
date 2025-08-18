@@ -31,3 +31,26 @@ class SiluAndMul(CustomOp):
         out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
         self.op(out, x)
         return out
+
+class Gelu(CustomOp):
+    """An activation function for Gelu.
+
+    The function computes x -> 0.5 * x * (1 + erf(x / sqrt(2)))
+
+    Shapes:
+        x: (num_tokens, d) or (batch_size, seq_len,d)
+        return: (num_tokens, d) or (batch_size, seq_len, d)
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.op = ops.gelu
+
+    def forward_native(self, x: torch.Tensor) -> torch.Tensor:
+        """PyTorch-native implementation equivalent to forward()."""
+        return F.gelu(x)
+
+    def forward_xpu(self, x: torch.Tensor) -> torch.Tensor:
+        out = torch.empty(x.shape, dtype=x.dtype, device=x.device)
+        self.op(out, x)
+        return out
