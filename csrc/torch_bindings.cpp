@@ -72,6 +72,13 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "()");
   ops.impl("dynamic_per_token_scaled_fp8_quant", torch::kXPU,
            &dynamic_per_token_scaled_fp8_quant);
+
+  // mmvq kernel for GGML.
+  ops.def(
+      "ggml_mul_mat_vec_a8(Tensor W, Tensor X, int type, SymInt row) "
+      "-> Tensor");
+  ops.impl("ggml_mul_mat_vec_a8", torch::kXPU, &ggml_mul_mat_vec_a8);
+
 }
 
 TORCH_LIBRARY_EXPAND(CONCAT(TORCH_EXTENSION_NAME, _cache_ops), cache_ops) {

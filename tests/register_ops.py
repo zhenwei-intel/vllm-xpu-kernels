@@ -116,3 +116,12 @@ def dynamic_per_token_scaled_fp8_quant(
 # moe
 def moe_sum(input: torch.Tensor, output: torch.Tensor) -> None:
     torch.ops._moe_C.moe_sum(input, output)
+
+
+def ggml_mul_mat_vec_a8(
+    W: torch.Tensor,
+    X: torch.Tensor,
+    quant_type: int,
+    row: int,
+) -> torch.Tensor:
+    return torch.ops._C.ggml_mul_mat_vec_a8(W, X, quant_type, row)

@@ -42,3 +42,6 @@ void dynamic_scaled_fp8_quant(torch::Tensor& out, torch::Tensor const& input,
 void dynamic_per_token_scaled_fp8_quant(
     torch::Tensor& out, torch::Tensor const& input, torch::Tensor& scales,
     std::optional<at::Tensor> const& scale_ub);
+
+torch::Tensor ggml_mul_mat_vec_a8(torch::Tensor W, torch::Tensor X,
+                                int64_t type, int64_t row);
