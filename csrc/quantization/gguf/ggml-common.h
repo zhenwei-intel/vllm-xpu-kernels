@@ -1,3 +1,4 @@
+#include <sycl/sycl.hpp>
 // copied from https://github.com/ggerganov/llama.cpp/blob/b2899/ggml-common.h
 #define QK_K 256
 #define K_QUANTS_PER_ITERATION 2
@@ -1060,8 +1061,8 @@ static const __device__ uint8_t kmask_iq2xs[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 static const __device__ int8_t kvalues_iq4nl[16] = {-127, -104, -83, -65, -49, -35, -22, -10, 1, 13, 25, 38, 53, 69, 89, 113};
 
 
-typedef half dfloat; // dequantize float
-typedef half2 dfloat2;
+typedef half sycl::half; // dequantize float
+typedef half2 sycl::half;
 typedef void (*dequantize_kernel_t)(const void * vx, const int ib, const int iqs, dfloat2 & v);
 template<typename dst_t>
 using to_cuda_ggml_t = void (*)(const void * __restrict__ x, dst_t * __restrict__ y, int k, cudaStream_t stream);
