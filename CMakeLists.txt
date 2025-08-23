@@ -150,7 +150,7 @@ if(VLLM_GPU_LANG STREQUAL "SYCL")
     "csrc/pos_encoding_kernels.cpp"
     "csrc/torch_bindings.cpp"
     "csrc/quantization/fp8/fp8_quant.cpp"
-    "csrc/quantization/gguf_kernels.cpp"
+    "csrc/quantization/gguf/gguf_kernel.cpp"
   )
   include_directories("/usr/include")
   set(CMPLR_ROOT $ENV{CMPLR_ROOT})

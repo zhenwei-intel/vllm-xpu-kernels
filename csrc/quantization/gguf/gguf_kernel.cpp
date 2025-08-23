@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "utils.h"
 #include "dispatch_utils.h"
+#include "ggml-common.h"
 
 namespace vllm {
 
