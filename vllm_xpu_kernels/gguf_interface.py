@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-import vllm_xpu_kernels._C  # noqa: F401
+import vllm_xpu_kernels._C  # noqa: F401  # Ensure GGUF ops are registered.
 import torch
 
 def ggml_dequantize(
