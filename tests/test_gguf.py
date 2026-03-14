@@ -8,14 +8,14 @@ import torch
 import vllm_xpu_kernels.gguf_interface as gguf_interface
 
 
-class _FakeQuantizationType:
+class _MockQuantizationType:
 
     def __init__(self, value: int):
         self.value = value
 
 
-class _FakeGGUF:
-    GGMLQuantizationType = _FakeQuantizationType
+class _MockGGUF:
+    GGMLQuantizationType = _MockQuantizationType
 
     @staticmethod
     def dequantize(data, quant_type):
@@ -23,7 +23,7 @@ class _FakeGGUF:
 
 
 def test_ggml_dequantize(monkeypatch):
-    monkeypatch.setattr(gguf_interface, "_gguf", _FakeGGUF)
+    monkeypatch.setattr(gguf_interface, "_gguf", _MockGGUF)
     monkeypatch.setattr(gguf_interface, "_GGUF_IMPORT_ERROR", None)
 
     qweight = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.uint8)
@@ -35,7 +35,7 @@ def test_ggml_dequantize(monkeypatch):
 
 @pytest.mark.parametrize("op_name", ["ggml_mul_mat_vec_a8", "ggml_mul_mat_a8"])
 def test_ggml_matmul_ops(monkeypatch, op_name: str):
-    monkeypatch.setattr(gguf_interface, "_gguf", _FakeGGUF)
+    monkeypatch.setattr(gguf_interface, "_gguf", _MockGGUF)
     monkeypatch.setattr(gguf_interface, "_GGUF_IMPORT_ERROR", None)
 
     qweight = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.uint8)
