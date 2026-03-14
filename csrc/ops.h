@@ -105,6 +105,19 @@ void swigluoai_and_mul(
     double alpha = 1.702,
     double limit = 7.0);
 
+torch::Tensor ggml_dequantize(
+    torch::Tensor W,
+    int64_t type,
+    int64_t m,
+    int64_t n,
+    std::optional<c10::ScalarType> const& dtype);
+
+torch::Tensor ggml_mul_mat_vec_a8(
+    torch::Tensor W, torch::Tensor X, int64_t type, int64_t row);
+
+torch::Tensor
+ggml_mul_mat_a8(torch::Tensor W, torch::Tensor X, int64_t type, int64_t row);
+
 torch::Tensor get_xpu_view_from_cpu_tensor(torch::Tensor& cpu_tensor);
 
 // Just for unittest

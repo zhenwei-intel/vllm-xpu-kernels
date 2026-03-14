@@ -19,7 +19,6 @@ triton-xpu
 
 # tests
 pytest
-gguf>=0.18.0
 
 # dependencies
 matplotlib # in benchmark, introduced by triton

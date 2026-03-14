@@ -248,17 +248,17 @@ def fp8_gemm_w8a16(input: torch.Tensor, weight: torch.Tensor,
 
 def ggml_dequantize(input: torch.Tensor, quant_type: int, m: int, n: int,
                     dtype: Optional[torch.dtype] = None):
-    return torch.ops._xpu_C.ggml_dequantize(input, quant_type, m, n, dtype)
+    return torch.ops._C.ggml_dequantize(input, quant_type, m, n, dtype)
 
 
 def ggml_mul_mat_vec_a8(input: torch.Tensor, x: torch.Tensor, quant_type: int,
                         row: int):
-    return torch.ops._xpu_C.ggml_mul_mat_vec_a8(input, x, quant_type, row)
+    return torch.ops._C.ggml_mul_mat_vec_a8(input, x, quant_type, row)
 
 
 def ggml_mul_mat_a8(input: torch.Tensor, x: torch.Tensor, quant_type: int,
                     row: int):
-    return torch.ops._xpu_C.ggml_mul_mat_a8(input, x, quant_type, row)
+    return torch.ops._C.ggml_mul_mat_a8(input, x, quant_type, row)
 
 
 # moe
