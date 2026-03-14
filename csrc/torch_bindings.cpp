@@ -87,6 +87,9 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       torch::kXPU,
       &dynamic_per_token_scaled_fp8_quant);
 
+  ops.def("gguf_dequantize(Tensor! result, Tensor input, int ggml_type) -> ()");
+  ops.impl("gguf_dequantize", torch::kXPU, &gguf_dequantize);
+
   // Compute per-token-group FP8 quantized tensor and scaling factor.
   ops.def(
       "per_token_group_fp8_quant(Tensor input, Tensor! output_q, Tensor! "

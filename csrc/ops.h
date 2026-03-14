@@ -99,6 +99,11 @@ void per_token_group_quant_fp8(
     double fp8_max,
     bool scale_ue8m0);
 
+void gguf_dequantize(
+    torch::Tensor& out,
+    torch::Tensor const& input,
+    int64_t ggml_type);
+
 void swigluoai_and_mul(
     torch::Tensor& out,
     torch::Tensor& input,

@@ -184,6 +184,11 @@ def dynamic_per_token_scaled_fp8_quant(
                                                     scale_ub)
 
 
+def gguf_dequantize(out: torch.Tensor, input: torch.Tensor,
+                    ggml_type: int) -> None:
+    torch.ops._C.gguf_dequantize(out, input, ggml_type)
+
+
 def per_token_group_fp8_quant(input: torch.Tensor,
                               output_q: torch.Tensor,
                               output_s: torch.Tensor,
