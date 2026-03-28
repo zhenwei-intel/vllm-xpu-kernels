@@ -5,6 +5,7 @@ import torch
 from vllm_xpu_kernels.quantization._quantize_convert import (
     GGUF_BLOCK_SIZE_Q4_K,
     GGUF_BLOCK_SIZE_Q8_0,
+    GGUF_QK8_0,
     dequantize_gguf,
 )
 
@@ -14,7 +15,7 @@ def _fp16_bytes(value: float) -> torch.Tensor:
 
 
 def _pack_q8_0_block(scale: float, quants: torch.Tensor) -> torch.Tensor:
-    assert quants.shape == (32, )
+    assert quants.shape == (GGUF_QK8_0, )
     return torch.cat((_fp16_bytes(scale), quants.to(torch.int8).view(
         torch.uint8)))
 
@@ -58,7 +59,7 @@ def _pack_q4_k_block(scale_values: list[int], min_values: list[int],
     return packed
 
 
-def test_dequantize_gguf_q8_0_block():
+def test_dequantize_gguf_q8_0():
     quants = torch.arange(-16, 16, dtype=torch.int8)
     packed = _pack_q8_0_block(0.5, quants)
 
@@ -68,7 +69,7 @@ def test_dequantize_gguf_q8_0_block():
     torch.testing.assert_close(output, expected)
 
 
-def test_dequantize_gguf_q4_k_m_block():
+def test_dequantize_gguf_q4_k_m():
     scale_values = [1, 2, 3, 4, 5, 6, 7, 8]
     min_values = [0] * 8
     packed = _pack_q4_k_block(
@@ -87,7 +88,13 @@ def test_dequantize_gguf_q4_k_m_block():
     torch.testing.assert_close(output, expected)
 
 
-def test_dequantize_gguf_rejects_invalid_block_size():
+def test_dequantize_gguf_rejected_invalid_block_size():
     packed = torch.zeros(GGUF_BLOCK_SIZE_Q8_0 - 1, dtype=torch.uint8)
     with pytest.raises(ValueError):
         dequantize_gguf(packed, "Q8_0")
+
+
+def test_dequantize_gguf_rejected_unsupported_type():
+    packed = torch.zeros(GGUF_BLOCK_SIZE_Q8_0, dtype=torch.uint8)
+    with pytest.raises(NotImplementedError):
+        dequantize_gguf(packed, "Q5_K")

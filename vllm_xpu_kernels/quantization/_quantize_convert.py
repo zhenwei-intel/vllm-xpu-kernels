@@ -309,6 +309,9 @@ def dynamic_per_tensor_quant_ref(input, use_sym_quant, bits):
 GGUF_QK8_0 = 32
 GGUF_QK_K = 256
 GGUF_Q4_K_SCALE_SIZE = 12
+GGUF_Q4_K_SCALE_MASK = 63
+GGUF_Q4_K_SUBBLOCK_SIZE = 32
+GGUF_Q4_K_GROUP_SIZE = 64
 GGUF_BLOCK_SIZE_Q8_0 = 2 + GGUF_QK8_0
 GGUF_BLOCK_SIZE_Q4_K = 4 + GGUF_Q4_K_SCALE_SIZE + GGUF_QK_K // 2
 
@@ -317,8 +320,8 @@ def _gguf_as_blocks(packed: torch.Tensor, block_size: int) -> torch.Tensor:
     packed = packed.contiguous().view(torch.uint8).reshape(-1)
     if packed.numel() % block_size != 0:
         raise ValueError(
-            "Expected packed GGUF tensor size to be divisible by "
-            f"{block_size}, got {packed.numel()}.")
+            "Expected packed GGUF tensor element count to be divisible by "
+            f"block size {block_size}, got {packed.numel()} elements.")
     return packed.reshape(-1, block_size)
 
 
@@ -329,11 +332,12 @@ def _gguf_bytes_to_fp16(raw: torch.Tensor) -> torch.Tensor:
     return words.to(dtype=torch.uint16).view(torch.float16)
 
 
-def _gguf_get_scale_min_k4(scales: torch.Tensor,
-                           index: int) -> tuple[torch.Tensor, torch.Tensor]:
+def _gguf_get_scale_min_q4_k(
+        scales: torch.Tensor,
+        index: int) -> tuple[torch.Tensor, torch.Tensor]:
     if index < 4:
-        scale = scales[:, index] & 63
-        minimum = scales[:, index + 4] & 63
+        scale = scales[:, index] & GGUF_Q4_K_SCALE_MASK
+        minimum = scales[:, index + 4] & GGUF_Q4_K_SCALE_MASK
     else:
         scale = (scales[:, index + 4] & 0x0F) | (
             (scales[:, index - 4] >> 6) << 4)
@@ -362,20 +366,22 @@ def dequantize_gguf_q4_k(packed: torch.Tensor) -> torch.Tensor:
     low = (quants & 0x0F).to(torch.float32)
     high = (quants >> 4).to(torch.float32)
 
-    for block_index in range(GGUF_QK_K // 64):
-        scale_0, min_0 = _gguf_get_scale_min_k4(scales, 2 * block_index)
-        scale_1, min_1 = _gguf_get_scale_min_k4(scales, 2 * block_index + 1)
-        q_slice = slice(block_index * 32, (block_index + 1) * 32)
-        out_offset = block_index * 64
+    for block_index in range(GGUF_QK_K // GGUF_Q4_K_GROUP_SIZE):
+        scale_0, min_0 = _gguf_get_scale_min_q4_k(scales, 2 * block_index)
+        scale_1, min_1 = _gguf_get_scale_min_q4_k(scales, 2 * block_index + 1)
+        q_slice = slice(block_index * GGUF_Q4_K_SUBBLOCK_SIZE,
+                        (block_index + 1) * GGUF_Q4_K_SUBBLOCK_SIZE)
+        out_offset = block_index * GGUF_Q4_K_GROUP_SIZE
 
         d_0 = (d * scale_0).unsqueeze(-1)
         d_1 = (d * scale_1).unsqueeze(-1)
         m_0 = (dmin * min_0).unsqueeze(-1)
         m_1 = (dmin * min_1).unsqueeze(-1)
 
-        dequant[:, out_offset:out_offset + 32] = d_0 * low[:, q_slice] - m_0
-        dequant[:, out_offset + 32:out_offset + 64] = (
-            d_1 * high[:, q_slice] - m_1)
+        dequant[:, out_offset:out_offset + GGUF_Q4_K_SUBBLOCK_SIZE] = (
+            d_0 * low[:, q_slice] - m_0)
+        dequant[:, out_offset + GGUF_Q4_K_SUBBLOCK_SIZE:out_offset +
+                GGUF_Q4_K_GROUP_SIZE] = d_1 * high[:, q_slice] - m_1
 
     return dequant.reshape(-1)
 
