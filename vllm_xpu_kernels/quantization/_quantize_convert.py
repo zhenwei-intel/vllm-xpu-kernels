@@ -304,3 +304,88 @@ def dynamic_per_tensor_quant_ref(input, use_sym_quant, bits):
         scale,
         zero_point,
     )
+
+
+GGUF_QK8_0 = 32
+GGUF_QK_K = 256
+GGUF_Q4_K_SCALE_SIZE = 12
+GGUF_BLOCK_SIZE_Q8_0 = 2 + GGUF_QK8_0
+GGUF_BLOCK_SIZE_Q4_K = 4 + GGUF_Q4_K_SCALE_SIZE + GGUF_QK_K // 2
+
+
+def _gguf_as_blocks(packed: torch.Tensor, block_size: int) -> torch.Tensor:
+    packed = packed.contiguous().view(torch.uint8).reshape(-1)
+    if packed.numel() % block_size != 0:
+        raise ValueError(
+            "Expected packed GGUF tensor size to be divisible by "
+            f"{block_size}, got {packed.numel()}.")
+    return packed.reshape(-1, block_size)
+
+
+def _gguf_bytes_to_fp16(raw: torch.Tensor) -> torch.Tensor:
+    raw = raw.to(dtype=torch.uint8)
+    words = (raw[:, 0].to(dtype=torch.int32) |
+             (raw[:, 1].to(dtype=torch.int32) << 8))
+    return words.to(dtype=torch.uint16).view(torch.float16)
+
+
+def _gguf_get_scale_min_k4(scales: torch.Tensor,
+                           index: int) -> tuple[torch.Tensor, torch.Tensor]:
+    if index < 4:
+        scale = scales[:, index] & 63
+        minimum = scales[:, index + 4] & 63
+    else:
+        scale = (scales[:, index + 4] & 0x0F) | (
+            (scales[:, index - 4] >> 6) << 4)
+        minimum = (scales[:, index + 4] >> 4) | (
+            (scales[:, index] >> 6) << 4)
+    return scale.to(torch.float32), minimum.to(torch.float32)
+
+
+def dequantize_gguf_q8_0(packed: torch.Tensor) -> torch.Tensor:
+    blocks = _gguf_as_blocks(packed, GGUF_BLOCK_SIZE_Q8_0)
+    scales = _gguf_bytes_to_fp16(blocks[:, :2]).to(torch.float32)
+    quants = blocks[:, 2:].view(torch.int8).to(torch.float32)
+    return (quants * scales.unsqueeze(-1)).reshape(-1)
+
+
+def dequantize_gguf_q4_k(packed: torch.Tensor) -> torch.Tensor:
+    blocks = _gguf_as_blocks(packed, GGUF_BLOCK_SIZE_Q4_K)
+    d = _gguf_bytes_to_fp16(blocks[:, 0:2]).to(torch.float32)
+    dmin = _gguf_bytes_to_fp16(blocks[:, 2:4]).to(torch.float32)
+    scales = blocks[:, 4:4 + GGUF_Q4_K_SCALE_SIZE]
+    quants = blocks[:, 4 + GGUF_Q4_K_SCALE_SIZE:]
+
+    dequant = torch.empty((blocks.shape[0], GGUF_QK_K),
+                          dtype=torch.float32,
+                          device=packed.device)
+    low = (quants & 0x0F).to(torch.float32)
+    high = (quants >> 4).to(torch.float32)
+
+    for block_index in range(GGUF_QK_K // 64):
+        scale_0, min_0 = _gguf_get_scale_min_k4(scales, 2 * block_index)
+        scale_1, min_1 = _gguf_get_scale_min_k4(scales, 2 * block_index + 1)
+        q_slice = slice(block_index * 32, (block_index + 1) * 32)
+        out_offset = block_index * 64
+
+        d_0 = (d * scale_0).unsqueeze(-1)
+        d_1 = (d * scale_1).unsqueeze(-1)
+        m_0 = (dmin * min_0).unsqueeze(-1)
+        m_1 = (dmin * min_1).unsqueeze(-1)
+
+        dequant[:, out_offset:out_offset + 32] = d_0 * low[:, q_slice] - m_0
+        dequant[:, out_offset + 32:out_offset + 64] = (
+            d_1 * high[:, q_slice] - m_1)
+
+    return dequant.reshape(-1)
+
+
+def dequantize_gguf(packed: torch.Tensor, gguf_type: str) -> torch.Tensor:
+    gguf_type = gguf_type.upper()
+    if gguf_type == "Q8_0":
+        return dequantize_gguf_q8_0(packed)
+    if gguf_type in {"Q4_K", "Q4_K_M"}:
+        return dequantize_gguf_q4_k(packed)
+    raise NotImplementedError(
+        f"Unsupported GGUF type '{gguf_type}'. Supported types: Q8_0, Q4_K, "
+        "Q4_K_M.")
