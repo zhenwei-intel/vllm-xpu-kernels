@@ -121,7 +121,6 @@ def _make_q3_k_block(rng: random.Random):
     out = [0.0] * QK_K
     for n in range(2):
         q = qs[32 * n:32 * (n + 1)]
-        hm = hmask[32 * n:32 * (n + 1)]
         for j in range(4):
             m = 1 << (4 * n + j)
             shift = 2 * j
@@ -130,7 +129,7 @@ def _make_q3_k_block(rng: random.Random):
                 is_idx = 8 * n + 2 * j + is0
                 dl = d * (_decode_q3_scale(scales, is_idx) - 32)
                 for l in range(16 * is0, 16 * is0 + 16):
-                    out[chunk + l] = dl * (((q[l] >> shift) & 0x03) - (0 if (hm[l] & m) else 4))
+                    out[chunk + l] = dl * (((q[l] >> shift) & 0x03) - (0 if (hmask[l] & m) else 4))
     return bytes(hmask) + bytes(qs) + bytes(scales) + _pack_f16(d), out
 
 

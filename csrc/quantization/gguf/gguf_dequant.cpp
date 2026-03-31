@@ -90,6 +90,8 @@ inline GGUFQuantType parse_quant_type(int64_t ggml_type) {
     default:
       TORCH_CHECK(false, "Unsupported GGUF ggml_type: ", ggml_type);
   }
+
+  return GGUFQuantType::kQ4_0;
 }
 
 inline uint16_t load_u16_le(const uint8_t* ptr) {
@@ -258,7 +260,6 @@ inline void dequantize_block_q3_k(const uint8_t* src, dst_t* dst) {
 
   for (int n = 0; n < 2; ++n) {
     const uint8_t* q = qs + 32 * n;
-    const uint8_t* hm = hmask + 32 * n;
     for (int j = 0; j < 4; ++j) {
       dst_t* y = dst + 128 * n + 32 * j;
       const uint8_t m = static_cast<uint8_t>(1u << (4 * n + j));
@@ -268,7 +269,7 @@ inline void dequantize_block_q3_k(const uint8_t* src, dst_t* dst) {
         const float dl = d * (static_cast<float>(decode_q3_scale_byte(scales, is)) - 32.0f);
         for (int l = 16 * is0; l < 16 * is0 + 16; ++l) {
           const int ql = (q[l] >> shift) & 0x03;
-          const int sign = (hm[l] & m) ? 0 : 4;
+          const int sign = (hmask[l] & m) ? 0 : 4;
           write_value(y, l, dl * static_cast<float>(ql - sign));
         }
       }
