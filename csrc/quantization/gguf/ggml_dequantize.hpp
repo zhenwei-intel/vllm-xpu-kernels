@@ -158,6 +158,19 @@ inline int64_t get_expected_nbytes(int64_t type, int64_t numel) {
   }
 }
 
+inline int64_t get_quant_block_size(int64_t type) {
+  switch (type) {
+    case GGML_TYPE_Q4_0:
+      return QK4_0;
+    case GGML_TYPE_Q5_0:
+      return QK5_0;
+    case GGML_TYPE_Q8_0:
+      return QK8_0;
+    default:
+      return -1;
+  }
+}
+
 inline const char* ggml_type_name(int64_t type) {
   switch (type) {
     case GGML_TYPE_Q4_0:

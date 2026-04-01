@@ -20,37 +20,25 @@ torch::Tensor ggml_dequantize(
       type == ggml::GGML_TYPE_Q4_0 || type == ggml::GGML_TYPE_Q5_0 ||
           type == ggml::GGML_TYPE_Q8_0,
       "XPU ggml_dequantize currently only supports Q4_0 (type=2), "
-      "Q5_0 (type=6) and Q8_0 (type=8), got ",
-      type);
+      "Q5_0 (type=6) and Q8_0 (type=8), got ", type);
   TORCH_CHECK(
       W.scalar_type() == at::ScalarType::Byte,
-      "XPU ggml_dequantize expects uint8 weights, got ",
-      W.scalar_type());
+      "XPU ggml_dequantize expects uint8 weights, got ", W.scalar_type());
   TORCH_CHECK(m >= 0 && n >= 0, "m and n must be non-negative");
 
   const int64_t numel = m * n;
+  const int64_t quant_block_size = ggml::get_quant_block_size(type);
   TORCH_CHECK(
-      numel % ggml::QK4_0 == 0,
-      ggml::ggml_type_name(type),
-      " dequantize expects m * n to be divisible by ",
-      ggml::QK4_0,
-      ", got ",
-      numel);
+      numel % quant_block_size == 0, ggml::ggml_type_name(type),
+      " dequantize expects m * n to be divisible by ", quant_block_size,
+      ", got ", numel);
 
   const int64_t expected_nbytes = ggml::get_expected_nbytes(type, numel);
   const int64_t weight_nbytes = W.numel() * W.element_size();
   TORCH_CHECK(
-      weight_nbytes == expected_nbytes,
-      ggml::ggml_type_name(type),
-      " packed weight size mismatch: expected ",
-      expected_nbytes,
-      " bytes for shape (",
-      m,
-      ", ",
-      n,
-      "), got ",
-      weight_nbytes,
-      " bytes");
+      weight_nbytes == expected_nbytes, ggml::ggml_type_name(type),
+      " packed weight size mismatch: expected ", expected_nbytes,
+      " bytes for shape (", m, ", ", n, "), got ", weight_nbytes, " bytes");
 
   const auto dtype = out_dtype.value_or(torch::kFloat16);
   TORCH_CHECK(
