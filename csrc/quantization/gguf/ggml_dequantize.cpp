@@ -18,9 +18,12 @@ torch::Tensor ggml_dequantize(
 
   TORCH_CHECK(
       type == ggml::GGML_TYPE_Q4_0 || type == ggml::GGML_TYPE_Q5_0 ||
-          type == ggml::GGML_TYPE_Q8_0,
+        type == ggml::GGML_TYPE_Q8_0 || type == ggml::GGML_TYPE_Q2_K ||
+        type == ggml::GGML_TYPE_Q3_K || type == ggml::GGML_TYPE_Q4_K ||
+        type == ggml::GGML_TYPE_Q5_K || type == ggml::GGML_TYPE_Q6_K,
       "XPU ggml_dequantize currently only supports Q4_0 (type=2), "
-      "Q5_0 (type=6) and Q8_0 (type=8), got ",
+      "Q5_0 (type=6), Q8_0 (type=8), Q2_K (type=10), Q3_K (type=11), "
+      "Q4_K (type=12), Q5_K (type=13) and Q6_K (type=14), got ",
       type);
   TORCH_CHECK(
       W.scalar_type() == at::ScalarType::Byte,
@@ -89,6 +92,56 @@ torch::Tensor ggml_dequantize(
           cgh.parallel_for(
               sycl::range<1>(static_cast<size_t>(numel)),
               ggml::ggml_dequantize_q8_0_kernel<scalar_t>(
+                  blocks, out_ptr, numel));
+        });
+        break;
+      }
+      case ggml::GGML_TYPE_Q2_K: {
+        auto* blocks = reinterpret_cast<const ggml::block_q2_K*>(weight_ptr);
+        queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(
+              sycl::range<1>(static_cast<size_t>(numel)),
+              ggml::ggml_dequantize_q2_K_kernel<scalar_t>(
+                  blocks, out_ptr, numel));
+        });
+        break;
+      }
+      case ggml::GGML_TYPE_Q3_K: {
+        auto* blocks = reinterpret_cast<const ggml::block_q3_K*>(weight_ptr);
+        queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(
+              sycl::range<1>(static_cast<size_t>(numel)),
+              ggml::ggml_dequantize_q3_K_kernel<scalar_t>(
+                  blocks, out_ptr, numel));
+        });
+        break;
+      }
+      case ggml::GGML_TYPE_Q4_K: {
+        auto* blocks = reinterpret_cast<const ggml::block_q4_K*>(weight_ptr);
+        queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(
+              sycl::range<1>(static_cast<size_t>(numel)),
+              ggml::ggml_dequantize_q4_K_kernel<scalar_t>(
+                  blocks, out_ptr, numel));
+        });
+        break;
+      }
+      case ggml::GGML_TYPE_Q5_K: {
+        auto* blocks = reinterpret_cast<const ggml::block_q5_K*>(weight_ptr);
+        queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(
+              sycl::range<1>(static_cast<size_t>(numel)),
+              ggml::ggml_dequantize_q5_K_kernel<scalar_t>(
+                  blocks, out_ptr, numel));
+        });
+        break;
+      }
+      case ggml::GGML_TYPE_Q6_K: {
+        auto* blocks = reinterpret_cast<const ggml::block_q6_K*>(weight_ptr);
+        queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(
+              sycl::range<1>(static_cast<size_t>(numel)),
+              ggml::ggml_dequantize_q6_K_kernel<scalar_t>(
                   blocks, out_ptr, numel));
         });
         break;

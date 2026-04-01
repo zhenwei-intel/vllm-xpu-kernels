@@ -46,12 +46,12 @@ QUANT_TYPES = [
     # GGMLQuantizationType.IQ3_XXS,
     # GGMLQuantizationType.IQ4_NL,
     # GGMLQuantizationType.IQ4_XS,
-    # # k-quants
-    # GGMLQuantizationType.Q2_K,
-    # GGMLQuantizationType.Q3_K,
-    # GGMLQuantizationType.Q4_K,
-    # GGMLQuantizationType.Q5_K,
-    # GGMLQuantizationType.Q6_K,
+    # k-quants
+    GGMLQuantizationType.Q2_K,
+    GGMLQuantizationType.Q3_K,
+    GGMLQuantizationType.Q4_K,
+    GGMLQuantizationType.Q5_K,
+    GGMLQuantizationType.Q6_K,
     # standard quantization
     GGMLQuantizationType.Q4_0,
     GGMLQuantizationType.Q5_0,
