@@ -3,6 +3,7 @@
 
 import torch
 from typing import Optional
+import vllm_xpu_kernels  # noqa: F401
 import vllm_xpu_kernels._C  # noqa: F401
 import vllm_xpu_kernels._moe_C  # noqa: F401
 import vllm_xpu_kernels._xpu_C  # noqa: F401
@@ -282,6 +283,21 @@ def fp8_gemm_w8a16(input: torch.Tensor, weight: torch.Tensor,
                    scale_wei: Optional[torch.Tensor],
                    scale_act: Optional[torch.Tensor]):
     return torch.ops._xpu_C.fp8_gemm_w8a16(input, weight, scale_wei, scale_act)
+
+
+def ggml_dequantize(input: torch.Tensor, quant_type: int, m: int, n: int,
+                    dtype: Optional[torch.dtype] = None):
+    return torch.ops._C.ggml_dequantize(input, quant_type, m, n, dtype)
+
+
+def ggml_mul_mat_vec_a8(input: torch.Tensor, x: torch.Tensor, quant_type: int,
+                        row: int):
+    return torch.ops._C.ggml_mul_mat_vec_a8(input, x, quant_type, row)
+
+
+def ggml_mul_mat_a8(input: torch.Tensor, x: torch.Tensor, quant_type: int,
+                    row: int):
+    return torch.ops._C.ggml_mul_mat_a8(input, x, quant_type, row)
 
 
 # moe

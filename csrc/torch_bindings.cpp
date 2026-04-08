@@ -111,6 +111,18 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
   ops.impl("swigluoai_and_mul", torch::kXPU, &swigluoai_and_mul);
 
   ops.def(
+      "ggml_dequantize(Tensor W, int type, int m, int n, ScalarType? dtype) "
+      "-> Tensor");
+  ops.impl("ggml_dequantize", torch::kXPU, &ggml_dequantize);
+
+  ops.def("ggml_mul_mat_vec_a8(Tensor W, Tensor X, int type, int row) -> "
+          "Tensor");
+  ops.impl("ggml_mul_mat_vec_a8", torch::kXPU, &ggml_mul_mat_vec_a8);
+
+  ops.def("ggml_mul_mat_a8(Tensor W, Tensor X, int type, int row) -> Tensor");
+  ops.impl("ggml_mul_mat_a8", torch::kXPU, &ggml_mul_mat_a8);
+
+  ops.def(
       "get_xpu_view_from_cpu_tensor(Tensor cpu_tensor) -> "
       "Tensor");
   ops.impl(
