@@ -26,6 +26,11 @@ def silu_and_mul(out: torch.Tensor, input: torch.Tensor) -> None:
     torch.ops._C.silu_and_mul(out, input)
 
 
+def silu_and_mul_quant(out: torch.Tensor, input: torch.Tensor,
+                       scale: torch.Tensor) -> None:
+    torch.ops._C.silu_and_mul_quant(out, input, scale)
+
+
 def gelu_fast(out: torch.Tensor, input: torch.Tensor) -> None:
     torch.ops._C.gelu_fast(out, input)
 
@@ -48,6 +53,11 @@ def gelu_and_mul(out: torch.Tensor, input: torch.Tensor) -> None:
 
 def gelu_tanh_and_mul(out: torch.Tensor, input: torch.Tensor) -> None:
     torch.ops._C.gelu_tanh_and_mul(out, input)
+
+
+def fatrelu_and_mul(out: torch.Tensor, input: torch.Tensor,
+                    threshold: float) -> None:
+    torch.ops._C.fatrelu_and_mul(out, input, threshold)
 
 
 def rotary_embedding(
@@ -485,6 +495,17 @@ def swap_blocks(
     """
     torch.ops._C_cache_ops.swap_blocks(src, dst, block_size_in_bytes,
                                        block_mapping)
+
+
+def swap_blocks_batch(
+    src_ptrs: torch.Tensor,
+    dst_ptrs: torch.Tensor,
+    sizes: torch.Tensor,
+) -> None:
+    """Batch version of swap_blocks: copies N independent (src, dst, size)
+    triples in a single call. The target XPU device is auto-inferred from the
+    device-side pointers in src_ptrs/dst_ptrs."""
+    torch.ops._C_cache_ops.swap_blocks_batch(src_ptrs, dst_ptrs, sizes)
 
 
 def topk_sigmoid(topk_weights: torch.Tensor, topk_ids: torch.Tensor,

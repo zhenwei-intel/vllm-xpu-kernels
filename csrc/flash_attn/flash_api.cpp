@@ -22,36 +22,33 @@ inline int get_num_splits(
   int cur_parallel = batch_size * num_heads_kv;
   int kv_blocks = (max_seqlen_k + block_size - 1) / block_size;
 
-  // Below 128 KV blocks the per-split FMHA compute is too small relative
-  // to the ReduceSplitK overhead, regardless of block size.
-  if (kv_blocks < 128) return 1;
+  // Minimum KV blocks to benefit from splitting, aligned with the kernel's
+  // kMinBlocksForSplit.  Below this the kernel falls back to single-split
+  // regardless, and splitting only adds ReduceSplitK overhead.
+  int min_kv_blocks = (block_size <= 64) ? 32 : 128;
+  if (kv_blocks < min_kv_blocks) return 1;
 
+  // GPU well-utilized or saturated: splitting only adds ReduceSplitK
+  // overhead without improving FMHA throughput.
+  if (cur_parallel >= num_xe_cores) return 1;
+
+  // Under-utilized (cur_parallel < num_xe_cores): split to fill the GPU.
   int target_splits;
-  if (cur_parallel < num_xe_cores) {
-    // Under-utilized: fill GPU cores.
-    // Scale by block_size since larger blocks mean more compute per WG.
-    int eff_parallel = cur_parallel * block_size / 64;
-    eff_parallel = std::max(1, eff_parallel);
-    target_splits = (num_xe_cores + eff_parallel - 1) / eff_parallel;
-  } else if (cur_parallel <= num_xe_cores * 2) {
-    // Well-utilized zone (1x-2x oversubscription):
-    // GPU is busy, splitting adds overhead without benefit.
-    return 1;
+  if (num_heads_kv >= 4) {
+    // Many KV heads: each split adds kv_heads WGs.  Scale inversely
+    // with block_size — p64 gets ~20 splits, p128 gets ~10.
+    target_splits = std::max(4, num_xe_cores * 64 / block_size);
   } else {
-    // Heavily oversubscribed (>2x): shorter WGs help.
-    // But gate out when compute is already saturated.
-    int eff_parallel = cur_parallel * block_size / 64;
-    if (eff_parallel >= num_xe_cores * 8) return 1;
-    target_splits = std::max(1, kv_blocks / 64);
-    int par_cap = std::max(1, num_xe_cores * 8 / cur_parallel);
-    target_splits = std::min(target_splits, par_cap);
+    // Few KV heads: target at least num_xe_cores splits for parallelism;
+    // allow more for very long sequences (~10 blocks/split at p64).
+    int blocks_per_split = (block_size <= 64) ? 10 : 8;
+    target_splits = std::max(num_xe_cores, kv_blocks / blocks_per_split);
   }
 
-  // Each split must process at least 32 KV blocks.
-  int max_splits_blocks = std::max(1, kv_blocks / 32);
-  // Hard cap: more splits give diminishing returns and increase
-  // ReduceSplitK overhead and temporary buffer memory.
-  int num_splits = std::min({target_splits, max_splits_blocks, 8});
+  // Each split must process at least 3 KV blocks to amortize overhead.
+  int max_splits_blocks = std::max(1, kv_blocks / 3);
+  // Hard cap: beyond 40 splits, diminishing returns.
+  int num_splits = std::min({target_splits, max_splits_blocks, 40});
   return std::max(1, num_splits);
 }
 
@@ -208,11 +205,10 @@ std::vector<at::Tensor> mha_varlen_fwd(
             : at::empty(
                   {num_tokens, num_heads_q * num_kv_splits, v_head_dim},
                   q.options().device(q.device()));
-    at::Tensor max_logits = at::full(
+    at::Tensor max_logits = at::empty(
         {num_tokens, num_heads_q, num_kv_splits},
-        -std::numeric_limits<float>::infinity(),
         q.options().dtype(at::kFloat).device(q.device()));
-    at::Tensor exp_sums = at::zeros(
+    at::Tensor exp_sums = at::empty(
         {num_tokens, num_heads_q, num_kv_splits},
         q.options().dtype(at::kFloat).device(q.device()));
 

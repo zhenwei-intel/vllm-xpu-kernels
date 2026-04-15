@@ -1,10 +1,9 @@
 #pragma once
-#include <ATen/ATen.h>
-#include <ATen/native/mkldnn/xpu/detail/LRUCache.h>
 
 #include <dnnl.h>
 #include <dnnl.hpp>
 
+#include "lru_cache.h"
 #include "onednn_runtime.h"
 
 namespace std {
@@ -737,8 +736,7 @@ T1 concat(const T1& t1, const T2& t2, const Ts&... ts) {
   return concat(concat(t1, t2), ts...);
 }
 
-using primitive_cache =
-    at::native::onednn::lru_cache<memory::dims, primitive_ext>;
+using primitive_cache = lru_cache<memory::dims, primitive_ext>;
 
 template <trans_type_t Tt, joint_dtypes_t Ts, typename F>
 struct matmul_primitive_cache_t {
