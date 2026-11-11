@@ -4,7 +4,8 @@
 #
 # Usage: intel_ci_daily.sh [--dry-run] [build_number]
 # Env (or $ENV_FILE): REPO, HF_TOKEN, HF_HOME, GPUS, COPILOT_BIN,
-#   COPILOT_MODEL_ID, STATE_DIR, AGENT_TIMEOUT
+#   COPILOT_MODEL_ID, STATE_DIR, AGENT_TIMEOUT, EMAIL_TO, EMAIL_FROM,
+#   SMTP_HOST, SMTP_PORT, SEND_EMAIL_BIN
 set -euo pipefail
 
 DRY_RUN=0
@@ -24,6 +25,11 @@ STATE_DIR=${STATE_DIR:-$HOME/.cache/intel-ci-fixer}
 GPUS=${GPUS:-0,1,2,3}
 HF_HOME=${HF_HOME:-/data/hf_home}
 AGENT_TIMEOUT=${AGENT_TIMEOUT:-3h}
+EMAIL_TO=${EMAIL_TO:-zhenwei.liu@intel.com}
+EMAIL_FROM=${EMAIL_FROM:-zhenwei.liu@intel.com}
+SMTP_HOST=${SMTP_HOST:-smtp.intel.com}
+SMTP_PORT=${SMTP_PORT:-25}
+SEND_EMAIL_BIN=${SEND_EMAIL_BIN:-/data/zhenweil/tasks/send_markdown_email.py}
 DAILY_MSG='Full intel CI-daily'
 PIPELINE=https://buildkite.com/vllm/intel-ci
 LIST_URL="$PIPELINE/builds?branch=main&created_from_days=7&query=Full+intel+CI-daily"
@@ -92,6 +98,17 @@ ZE_AFFINITY_MASK=$GPUS HF_TOKEN=$HF_TOKEN HF_HOME=$HF_HOME \
   timeout -k 2m "$AGENT_TIMEOUT" "$COPILOT_BIN" --model "$MODEL" -p "$PROMPT" \
   --allow-all-tools "${DENY_ARGS[@]}" --allow-all-paths --allow-all-urls --no-ask-user \
   --share "$SESSION"
+
+if [[ -n $EMAIL_TO && -s $REPORT ]]; then
+  python3 "$SEND_EMAIL_BIN" "$REPORT" \
+    --subject "[Intel CI Daily] Build #$BUILD 失败分析报告 ($(date +%F))" \
+    --from-addr "$EMAIL_FROM" \
+    --to "$EMAIL_TO" \
+    --smtp-host "$SMTP_HOST" \
+    --smtp-port "$SMTP_PORT"
+else
+  echo "skip email: report missing or empty ($REPORT)" >&2
+fi
 
 echo "$BUILD" >>"$STATE_DIR/done.txt"
 echo "done: report=$REPORT session=$SESSION"
