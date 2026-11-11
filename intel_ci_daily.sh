@@ -85,7 +85,7 @@ PROMPT="Use the /intel-ci-fix skill to analyze $BUILD_URL.
 Pre-fetched failed job logs (<log_path>\t<job_name>\t<metadata_json>):
 $JOBS
 Use only GPUs $GPUS (ZE_AFFINITY_MASK=$GPUS) and add '--label intel-ci-fixer=$RUN_ID' to every docker run.
-Write the final markdown report to $REPORT, 搜索下有没有PR已经解决了问题了and print a Chinese summary (中文回答)."
+Write the final markdown report to $REPORT, search for an existing PR that has already fixed the issue, and if none exists, create a new draft PR. Print the summary in Chinese."
 
 cd "$REPO"
 ZE_AFFINITY_MASK=$GPUS HF_TOKEN=$HF_TOKEN HF_HOME=$HF_HOME \
